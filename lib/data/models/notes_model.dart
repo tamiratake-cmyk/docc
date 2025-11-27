@@ -1,10 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class TaskItem {
+   final String text;
+    final bool done;
+
+  TaskItem({
+    required this.text,
+    required this.done,
+  });
+
+  factory TaskItem.fromMap(Map<String, dynamic> data) {
+    return TaskItem(
+      text: data['text'] ?? '',
+      done: data['done'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'text': text,
+      'done': done,
+    };
+  }
+
+
+}
+
 class NotesModel {
   final String id;
   final String title;
   final String content;
-  final bool completed;
+  final List<TaskItem> tasks;
   final Timestamp timestamp;
 
 
@@ -12,7 +38,7 @@ class NotesModel {
     required this.id,
     required this.title,
     required this.content,
-    required this.completed,
+    required this.tasks,
     required this.timestamp,
   });
 
@@ -21,7 +47,10 @@ class NotesModel {
       id: id,
       title: data['title'] ?? '',
       content: data['content'] ?? '',
-      completed: data['completed'] ?? false,
+      tasks: (data['tasks'] as List<dynamic>?)
+          ?.map((item) => TaskItem.fromMap(item as Map<String, dynamic>))
+          .toList() ??
+          [],
       timestamp: data['timestamp'] ?? Timestamp.now(),
     );
   }
@@ -31,7 +60,7 @@ class NotesModel {
     return {
       'title': title,
       'content': content,
-      'completed': completed,
+      'tasks': tasks.map((task) => task.toMap()).toList(),
       'timestamp': timestamp,
     };
   }

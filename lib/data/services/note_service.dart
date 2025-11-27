@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
 
 class NoteService {
-  final _db = FirebaseFirestore.instance;
+  // Don't access `FirebaseFirestore.instance` at construction time — access
+  // it lazily so the service can be created on platforms where Firebase
+  // isn't initialized (e.g., Linux during development).
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
 
   Stream<List<NotesModel>> getNotes(String uid){
@@ -18,6 +21,25 @@ class NoteService {
 
   }
 
+Future<void> toggleTask(
+  String uid,
+  NotesModel note,
+  int taskIndex,
+) async {
+    final newTask = [...note.tasks];
+    final task = newTask[taskIndex];
+
+    newTask[taskIndex] = TaskItem(
+      text: task.text,
+      done: !task.done,
+    );
+    await _db
+    .collection('users/$uid/notes')
+      .doc(note.id)
+      .update({
+        'tasks': newTask.map((task) => task.toMap()).toList(),
+      });
+  }
 
 
   Future<void> addNote(String uid, NotesModel note) async {
