@@ -4,7 +4,6 @@ import 'package:flutter_application_1/app/screens/home_page.dart';
 import 'package:flutter_application_1/app/screens/user_page.dart';
 import 'package:flutter_application_1/app/pages/camer_page.dart';
 import 'package:flutter_application_1/app/pages/map_page.dart';
-import 'package:flutter_application_1/app/pages/webview_page.dart';
 import 'package:go_router/go_router.dart';
 
 /// Responsive navigation using GoRouter's StatefulShellRoute.
@@ -88,13 +87,7 @@ class AppRouter {
               builder: (context, state) => const MapPage(),
             ),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/web',
-              name: 'web',
-              builder: (context, state) => const WebviewPage(),
-            ),
-          ]),
+         
         ],
       ),
     ],
