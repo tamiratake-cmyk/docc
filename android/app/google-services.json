@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "705903499708",
+    "project_id": "website-223b7",
+    "storage_bucket": "website-223b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:705903499708:android:8030b9fd5f504e79ed33b9",
+        "android_client_info": {
+          "package_name": "Com.sportgeda.timesport"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASYDrqxa1xvM07g0qJ1kdWk9UdvOtDAJk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:705903499708:android:13805a66832a4215ed33b9",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASYDrqxa1xvM07g0qJ1kdWk9UdvOtDAJk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
