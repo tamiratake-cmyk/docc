@@ -1,18 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
+import 'package:flutter_application_1/domain/entities/notes.dart';
 
 class NoteService {
-  final _db = FirebaseFirestore.instance;
+   final FirebaseFirestore _db;
+
+  NoteService({FirebaseFirestore? fireStore})
+      : _db = fireStore ?? FirebaseFirestore.instance;
 
 
-  Stream<List<NotesModel>> getNotes(String uid){
+  Stream<List<NoteModel>> getNotes(String uid){
+    
     return _db
     .collection('users/$uid/notes')
     .orderBy('timestamp', descending: true)
     .snapshots()
     .map((snapshot){
       return snapshot.docs.map((doc){
-        return NotesModel.fromMap(doc.id, doc.data());
+        return NoteModel.fromDoc(doc);
       }).toList();
     });
 
@@ -20,11 +25,11 @@ class NoteService {
 
 
 
-  Future<void> addNote(String uid, NotesModel note) async {
-    await _db.collection('users/$uid/notes').add(note.toMap());
+  Future<DocumentReference> addNote(String uid, NoteModel note) async {
+   return  await _db.collection('users/$uid/notes').add(note.toMap());
   }
 
-  Future<void> updateNote(String uid, NotesModel note) async {
+  Future<void> updateNote(String uid, NoteModel note) async {
     await _db.collection('users/$uid/notes').doc(note.id).update(note.toMap());
   }
 

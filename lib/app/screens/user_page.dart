@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/app/bloc/user/user_bloc.dart';
 import 'package:flutter_application_1/app/bloc/user/user_event.dart';
@@ -17,12 +18,24 @@ class UserPage extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          ElevatedButton(
-            onPressed: () {
-              context.read<UserBloc>().add(LoadUserProfile());
-              context.read<UserBloc>().add(LoadUserPosts());
-            },
-            child: const Text('Load User Posts'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  context.read<UserBloc>().add(LoadUserProfile());
+                  context.read<UserBloc>().add(LoadUserPosts());
+                },
+                child: const Text('Load User Posts'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                },
+                tooltip: 'Sign Out',
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Expanded(

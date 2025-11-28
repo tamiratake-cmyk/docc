@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/app/pages/login_page.dart';
+import 'package:flutter_application_1/app/pages/signup_page.dart';
 import 'package:flutter_application_1/app/screens/battery.dart';
 import 'package:flutter_application_1/app/screens/home_page.dart';
 import 'package:flutter_application_1/app/screens/user_page.dart';
 import 'package:flutter_application_1/app/pages/camer_page.dart';
 import 'package:flutter_application_1/app/pages/map_page.dart';
+import 'package:flutter_application_1/data/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
 /// Responsive navigation using GoRouter's StatefulShellRoute.
@@ -12,7 +15,33 @@ import 'package:go_router/go_router.dart';
 class AppRouter {
   static final router = GoRouter(
     debugLogDiagnostics: true,
+    initialLocation: '/login',
+    refreshListenable: AuthService.instance,
+    redirect: (context, state) {
+      final isLoggedIn = AuthService.instance.isLoggedIn;
+      final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+
+      if (!isLoggedIn && !isLoggingIn) {
+        return '/login';
+      }
+
+      if (isLoggedIn && isLoggingIn) {
+        return '/';
+      }
+
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/login',
+        name: 'login',
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/signup',
+        name: 'signup',
+        builder: (context, state) => const SignupPage(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return _ResponsiveScaffold(navigationShell: navigationShell);
@@ -55,15 +84,15 @@ class AppRouter {
             ),
           ]),
           
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/app1',
-              name: 'app1',
-              builder: (context, state) => const Scaffold(
-                body: Center(child: Text('App 1 - Placeholder')),
-              ),
-            ),
-          ]),
+          // StatefulShellBranch(routes: [
+          //   GoRoute(
+          //     path: '/app1',
+          //     name: 'app1',
+          //     builder: (context, state) => const Scaffold(
+          //       body: Center(child: Text('App 1 - Placeholder')),
+          //     ),
+          //   ),
+          // ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/settings',
@@ -73,20 +102,20 @@ class AppRouter {
               ),
             ),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/camera',
-              name: 'camera',
-              builder: (context, state) => const CamerPage(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/map',
-              name: 'map',
-              builder: (context, state) => const MapPage(),
-            ),
-          ]),
+          // StatefulShellBranch(routes: [
+          //   GoRoute(
+          //     path: '/camera',
+          //     name: 'camera',
+          //     builder: (context, state) => const CamerPage(),
+          //   ),
+          // ]),
+          // StatefulShellBranch(routes: [
+          //   GoRoute(
+          //     path: '/map',
+          //     name: 'map',
+          //     builder: (context, state) => const MapPage(),
+          //   ),
+          // ]),
          
         ],
       ),
