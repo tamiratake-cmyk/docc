@@ -23,6 +23,25 @@ class NoteService {
 
   }
 
+Future<void> toggleTask(
+  String uid,
+  NotesModel note,
+  int taskIndex,
+) async {
+    final newTask = [...note.tasks];
+    final task = newTask[taskIndex];
+
+    newTask[taskIndex] = TaskItem(
+      text: task.text,
+      done: !task.done,
+    );
+    await _db
+    .collection('users/$uid/notes')
+      .doc(note.id)
+      .update({
+        'tasks': newTask.map((task) => task.toMap()).toList(),
+      });
+  }
 
 
   Future<DocumentReference> addNote(String uid, NoteModel note) async {
