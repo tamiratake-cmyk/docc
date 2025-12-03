@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_application_1/domain/entities/notes.dart';
+import 'package:flutter_application_1/domain/entities/task.dart';
 
 abstract class NotesEvent extends Equatable {
   const NotesEvent();
@@ -10,24 +11,35 @@ abstract class NotesEvent extends Equatable {
 
 
 class LoadNotes extends NotesEvent {
-  final String uid;
-  
-  const LoadNotes(this.uid);
-
-  @override
-  List<Object> get props => [uid];
+  const LoadNotes();
 }
 
 class AddNote extends NotesEvent{
-  final String uid;
   final Note note;
 
-  const AddNote(this.uid, this.note);
+  const AddNote(this.note);
 
   @override
-  List<Object> get props => [uid, note];
+  List<Object> get props => [note];
 }
 
+class searchNotes extends NotesEvent {
+  final String query;
+
+  const searchNotes(this.query);
+
+  @override
+  List<Object> get props => [query];
+}
+
+class FilterNotesByTag extends NotesEvent {
+  final String tag;
+
+  const FilterNotesByTag(this.tag);
+
+  @override
+  List<Object> get props => [tag];
+}
 
 class NotesUpdated  extends NotesEvent {
   final List<Note> notes;
@@ -41,47 +53,61 @@ class NotesUpdated  extends NotesEvent {
 
 
 class UpdateNote extends NotesEvent {
-  final String uid;
   final Note note;
 
-  const UpdateNote(this.uid, this.note);
+  const UpdateNote(this.note);
 
   @override
-  List<Object> get props => [uid, note];
+  List<Object> get props => [note];
 }
+
 
 
 class DeleteNote extends NotesEvent {
-  final String uid;
   final String noteId;
 
-  const DeleteNote(this.uid, this.noteId);
+  const DeleteNote(this.noteId);
 
   @override
-  List<Object> get props => [uid, noteId];
+  List<Object> get props => [noteId];
+}
+
+class RestoreNote extends NotesEvent {
+  final Note note;
+
+  const RestoreNote(this.note);
+
+  @override
+  List<Object> get props => [note];
 }
 
 class ToggleTaskEvent extends NotesEvent {
-  final String uid;
   final String noteId;
   final String taskId;
 
-  const ToggleTaskEvent(this.uid, this.noteId, this.taskId,);
+  const ToggleTaskEvent(this.noteId, this.taskId,);
 
   @override
-  List<Object> get props => [uid, noteId, taskId];
+  List<Object> get props => [noteId, taskId];
 }
 
 
 class AddTaskEvent extends NotesEvent {
-  final String uid;
   final String noteId;
-  final String taskText;
+  final TaskItem task;
 
-  const AddTaskEvent(this.uid, this.noteId, this.taskText,);
+  const AddTaskEvent(this.noteId, this.task);
 
   @override
-  List<Object> get props => [uid, noteId, taskText];
+  List<Object> get props => [noteId, task];
 }
 
+class RestoreDeletedNotes extends NotesEvent {
+  final String uid;
+  final List<Note> deletedNotes;
 
+  const RestoreDeletedNotes(this.uid, this.deletedNotes);
+
+  @override
+  List<Object> get props => [uid, deletedNotes];
+}

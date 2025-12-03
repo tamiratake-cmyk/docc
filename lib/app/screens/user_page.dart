@@ -23,10 +23,9 @@ class UserPage extends StatelessWidget {
             children: [
               ElevatedButton(
                 onPressed: () {
-                  context.read<UserBloc>().add(LoadUserProfile());
-                  context.read<UserBloc>().add(LoadUserPosts());
+                   throw FormatException('Format Exception Error');
                 },
-                child: const Text('Load User Posts'),
+                child: const Text('Throw Test Exception'),
               ),
               IconButton(
                 icon: const Icon(Icons.logout),
@@ -42,11 +41,13 @@ class UserPage extends StatelessWidget {
             child: BlocBuilder<UserBloc, UserState>(
               builder: (context, state) {
                 if (state.isLoading) {
-                  return const
-                    AnimatedOpacity(
-                      opacity: 1.0, 
-                      duration: Duration(milliseconds: 500),
-                      child: LoadingView(),
+                  return AnimatedOpacity(
+                      opacity: 1.0,
+                      duration: const Duration(milliseconds: 500),
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(),
+                      ),
                     );
                 } else if (state.error != null) {
                   return ErrorView(message: state.error!);

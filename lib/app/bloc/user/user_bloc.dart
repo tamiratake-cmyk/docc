@@ -1,5 +1,6 @@
 import 'package:flutter_application_1/app/bloc/user/user_event.dart';
 import 'package:flutter_application_1/app/bloc/user/user_state.dart';
+import 'package:flutter_application_1/domain/entities/users.dart';
 import 'package:flutter_application_1/domain/useCases/get_user_post.dart';
 import 'package:flutter_application_1/domain/useCases/get_user_profile.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,6 +30,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
             emit(state.copyWith(isLoading: false, error: e.toString()));
         }
     }
+
+
 
     Future<void> _onLoadUserPosts(
         LoadUserPosts event,

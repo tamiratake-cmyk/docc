@@ -5,6 +5,7 @@ class Note {
   final String id;
   final String title;
   final String content;
+  final List<String>? tags;
   final List<TaskItem> tasks;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -15,6 +16,7 @@ class Note {
     required this.id,
     required this.title,
     required this.content,
+    this.tags,
     required this.tasks,
     required this.createdAt,
     required this.updatedAt,
@@ -26,6 +28,7 @@ class Note {
     String? id,
     String? title,
     String? content,
+    List<String>? tags,
     List<TaskItem>? tasks,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -36,6 +39,7 @@ class Note {
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
+      tags: tags ?? this.tags,
       tasks: tasks ?? this.tasks,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

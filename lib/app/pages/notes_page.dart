@@ -1,14 +1,23 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/app/bloc/ai/ai_bloc.dart';
+import 'package:flutter_application_1/app/bloc/ai/ai_event.dart';
+import 'package:flutter_application_1/app/bloc/ai/ai_state.dart';
+import 'package:flutter_application_1/app/widgets/error_view.dart';
+import 'package:flutter_application_1/app/widgets/loading_view.dart';
+import 'package:flutter_application_1/domain/entities/notes.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_application_1/app/bloc/notes/notes_bloc.dart';
+import 'package:flutter_application_1/app/bloc/notes/notes_event.dart';
+import 'package:flutter_application_1/app/bloc/notes/notes_state.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
-import 'package:flutter_application_1/data/services/note_service.dart';
+import 'package:flutter_application_1/data/models/task_model.dart';
+// ...existing imports...
+import 'package:flutter_application_1/data/helpers/di/injector.dart';
+import 'package:go_router/go_router.dart';
 
-class NotesPage extends StatelessWidget{
-  
-
-  NotesPage ({super.key});
+class NotesPage extends StatelessWidget {
+  const NotesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,75 +27,419 @@ class NotesPage extends StatelessWidget{
     if (!firebaseAvailable) {
       // Provide a local/offline notes UI so the app is usable on platforms
       // where Firebase isn't configured (e.g., Linux during development).
-      return OfflineNotesView();
+      return const OfflineNotesView();
     }
 
-    final NoteService noteService = NoteService();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Notes Page')),
-        body: const Center(child: Text('Please sign in to view notes.')),
+    return 
+   MultiBlocProvider(
+      providers: [
+        // BlocProvider<ThemeBloc>(
+        //   create: (_) => sl<ThemeBloc>()..add(LoadTheme()),
+        // ),
+        BlocProvider<NotesBloc>(
+          create: (context) => sl<NotesBloc>()..add(const LoadNotes()),
+        ),
+        BlocProvider<AiBloc>(
+          create: (context) => sl<AiBloc>(),
+        ),
+      ] ,
+      child: const NotesView(),
+   );
+    // BlocProvider(
+    //   create: (context) => sl<NotesBloc>()..add(const LoadNotes()),
+    //   child: const NotesView(),
+    // );
+  }
+}
+
+class NotesView extends StatefulWidget {
+  const NotesView({super.key});
+
+  @override
+  State<NotesView> createState() => _NotesViewState();
+}
+
+class _NotesViewState extends State<NotesView> {
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedTag;
+
+  Future<void> _showAiOptions(Note note) async {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.summarize),
+              title: const Text('Summarize'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _handleSummarize(note);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Rewrite'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _handleRewrite(note);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat_bubble),
+              title: const Text('Chat'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _handleChat(note);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleSummarize(Note note) async {
+    final aiBloc = sl<AiBloc>();
+    final dialogContext = context;
+    // Use an AlertDialog for progress so it renders correctly on all themes
+    showDialog(
+      context: dialogContext,
+      barrierDismissible: true,
+      builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())),
+    );
+
+    aiBloc.add(Summarize(note.content));
+
+    // Wait for AiLoaded or AiFailure but don't hang forever — add a timeout.
+    final state = await aiBloc.stream
+        .firstWhere((s) => s is AiLoaded || s is AiFailure)
+        .timeout(const Duration(seconds: 20), onTimeout: () => AiFailure('AI request timed out'));
+
+
+    print('AI State: ${state}'); // Debug print statement
+    
+    context.pop();
+    // Navigator.of(dialogContext).pop();
+
+    if (state is AiLoaded) {
+      final text = (state.response ?? '').trim();
+      
+      print('Summary Text: $text'); // Debug print statement
+
+      showDialog(
+        context: dialogContext,
+        builder: (_) => AlertDialog(
+          title: const Text('Summary'),
+          content: Text(text.isEmpty ? 'No summary returned by the AI.' : text),
+        ),
       );
+    } else if (state is AiFailure) {
+      print('AI Failure: ${state.error}'); // Debug print statement
+      ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
     }
+    await aiBloc.close();
+  }
+
+  Future<void> _handleRewrite(Note note) async {
+    final instructionController = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Rewrite Instruction'),
+        content: TextField(controller: instructionController, decoration: const InputDecoration(hintText: 'Instruction')),
+        actions: [TextButton(onPressed: () => context.pop(), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.of(context).pop(instructionController.text.trim()), child: const Text('OK'))],
+      ),
+    );
+      if (result == null || result.isEmpty) return;
+    final aiBloc = sl<AiBloc>();
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())));
+    aiBloc.add(ReWrite(result, note.content));
+    final state = await aiBloc.stream
+        .firstWhere((s) => s is AiLoaded || s is AiFailure)
+        .timeout(const Duration(seconds: 20), onTimeout: () => AiFailure('AI request timed out'));
+    // Navigator.of(context).pop();
+    context.pop();
+
+    if (state is AiLoaded) {
+      final text = (state.response ?? '').trim();
+      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Rewrite'), content: Text(text.isEmpty ? 'No rewrite returned by the AI.' : text)));
+    } else if (state is AiFailure) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
+    }
+    await aiBloc.close();
+  }
+
+  Future<void> _handleChat(Note note) async {
+    final questionController = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Ask about this note'),
+        content: TextField(controller: questionController, decoration: const InputDecoration(hintText: 'Question')),
+        actions: [TextButton(onPressed: () => context.pop(), child: const Text('Cancel')), TextButton(onPressed: () => context.pop(questionController.text.trim()), child: const Text('Ask'))],
+      ),
+    );
+    if (result == null || result.isEmpty) return;
+    final aiBloc = sl<AiBloc>();
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())));
+    aiBloc.add(Chat(result, note.content));
+    final state = await aiBloc.stream
+        .firstWhere((s) => s is AiLoaded || s is AiFailure)
+        .timeout(const Duration(seconds: 20), onTimeout: () => AiFailure('AI request timed out'));
+    // Navigator.of(context).pop();
+
+    context.pop();
+
+    print('AI State: ${state}');
+    if (state is AiLoaded) {
+      final text = (state.response ?? '').trim();
+      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Chat'), content: Text(text.isEmpty ? 'No reply returned by the AI.' : text)));
+    } else if (state is AiFailure) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
+    }
+    await aiBloc.close();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notes Page'),
-
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          noteService.addNote(user.uid,
-              NotesModel(
-                id:"",
-                title: 'New Note', content: 'Note content', 
-                tasks: [TaskItem(text: '', done: false)],
-                timestamp: Timestamp.now()));
+          context.push('/add-note');
         },
         child: const Icon(Icons.add),
       ),
-      body: StreamBuilder<List<NotesModel>>(
-        stream: noteService.getNotes(user.uid),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final notes = snapshot.data ?? [];
-          return ListView.builder(
-            itemCount: notes.length,
-            itemBuilder: (context, index) {
-              final note = notes[index];
-            return ListTile(
-              title: Text(note.title),
-              subtitle: note.tasks.isNotEmpty
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: note.tasks.map((task) => Row(
-                      children: [
-                        Icon(
-                          task.done ? Icons.check_box : Icons.check_box_outline_blank,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(task.text),
-                      ],
-                    )).toList(),
-                  )
-                : Text(note.content),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () {
-                  noteService.deleteNote(user.uid, note.id);
-                },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(18.0),
+
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search notes...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    context.read<NotesBloc>().add(const LoadNotes());
+                  },
+                ),
               ),
-            );
+              onSubmitted: (query) {
+                if (query.isNotEmpty) {
+                  context.read<NotesBloc>().add(searchNotes(query));
+                } else {
+                  context.read<NotesBloc>().add(const LoadNotes());
+                }
+              },
+            ),
+          ),
+          BlocBuilder<NotesBloc, NotesState>(
+            builder: (context, state) {
+              if (state is NotesLoaded) {
+                final allTags = state.availableTags;
+
+                if (allTags.isNotEmpty) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      children: [
+                        ChoiceChip(
+                          label: const Text('All'),
+                          selected: _selectedTag == null,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedTag = null;
+                              });
+                              context.read<NotesBloc>().add(const LoadNotes());
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ...allTags.map((tag) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: ChoiceChip(
+                              label: Text(tag),
+                              selected: _selectedTag == tag,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _selectedTag = tag;
+                                  });
+                                  context
+                                      .read<NotesBloc>()
+                                      .add(FilterNotesByTag(tag));
+                                } else {
+                                  setState(() {
+                                    _selectedTag = null;
+                                  });
+                                  context.read<NotesBloc>().add(const LoadNotes());
+                                }
+                              },
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                }
+              }
+              return const SizedBox.shrink();
             },
-          );
-        },
+          ),
+          Expanded(
+            child: BlocBuilder<NotesBloc, NotesState>(
+              builder: (context, state) {
+                if (state is NotesLoading) {
+                  return ListView(
+                    children: List.generate(6, (_) => LoadingWidget(),
+                    growable: true),
+                  );
+                } else if (state is NotesFailure) {
+                  return  ErrorView(message: state.error);
+                } else if (state is NotesLoaded) {
+                  final notes = state.notes;
+                  if (notes.isEmpty) {
+                    return AnimatedCrossFade(
+                      firstChild: Center(
+                        child: Text(
+                          _selectedTag != null
+                              ? 'No notes found with tag "$_selectedTag".'
+                              : 'No notes available. Tap + to add a new note.',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                       secondChild: SizedBox.shrink(),
+                        crossFadeState: notes.isEmpty
+                            ? CrossFadeState.showFirst
+                            : CrossFadeState.showSecond,
+                         duration: Duration(milliseconds: 300),
+                         );
+                  }
+                  return ListView.builder(
+                    itemCount: notes.length,
+                    itemBuilder: (context, index) {
+                      final note = notes[index];
+                      return Dismissible(
+                        key: Key(note.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (_){ 
+                          context.read<NotesBloc>().add(DeleteNote(note.id));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Note deleted"),
+                              action: SnackBarAction(
+                                label: 'Undo',
+                                onPressed: () {
+                                  context.read<NotesBloc>().add(RestoreNote(note));
+                                },
+                              ),
+                        )
+                          );
+                        },  
+                        // confirmDismiss: (_) async {
+                          
+                        child: ListTile(
+                          onTap: () => context.push('/view-note', extra: note),
+                            title: Text(note.title),
+                          leading: Icon(
+                            note.pinned ? Icons.push_pin : Icons.note,
+                            color: note.pinned ? Colors.blue : null,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (note.tasks.isNotEmpty)
+                                ...note.tasks.take(3).map((task) => Row(
+                                      children: [
+                                        Checkbox(
+                                          value: task.done,
+                                          visualDensity: VisualDensity.compact,
+                                          onChanged: (_) {
+                                            context.read<NotesBloc>().add(ToggleTaskEvent(note.id, task.id));
+                                          },
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            task.text,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    )),
+                              if (note.tasks.isEmpty)
+                                Text(
+                                  note.content,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 8),
+                              if ((note.tags ?? []).isNotEmpty)
+                                Wrap(
+                                  spacing: 4.0,
+                                  runSpacing: 4.0,
+                                  children: (note.tags ?? [])
+                                      .map((tag) => Chip(
+                                            label: Text(tag, style: const TextStyle(fontSize: 10)),
+                                            padding: EdgeInsets.zero,
+                                            visualDensity: VisualDensity.compact,
+                                          ))
+                                      .toList(),
+                                ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.smart_toy_outlined),
+                                onPressed: () => _showAiOptions(note),
+                                tooltip: 'AI actions',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () {
+                                  context.read<NotesBloc>().add(DeleteNote(note.id));
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -95,22 +448,30 @@ class NotesPage extends StatelessWidget{
 /// A simple local notes view used when Firebase is unavailable. This stores
 /// notes in memory for development on platforms without Firebase support.
 class OfflineNotesView extends StatefulWidget {
-  const OfflineNotesView({Key? key}) : super(key: key);
+  const OfflineNotesView({super.key});
 
   @override
   State<OfflineNotesView> createState() => _OfflineNotesViewState();
 }
 
 class _OfflineNotesViewState extends State<OfflineNotesView> {
-  final List<NotesModel> _notes = [];
+  final List<NoteModel> _notes = [];
 
   void _addNote() {
-    final note = NotesModel(
+    final note = NoteModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: 'Local Note',
       content: 'This note is stored locally (no Firebase).',
-      tasks: [TaskItem(text: '', done: false)],
-      timestamp: Timestamp.now(),
+      tags: List.empty(growable: true),
+      tasks: [
+        TaskModel(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          text: 'Local Task',
+          done: false,
+        )
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
     setState(() => _notes.insert(0, note));
   }

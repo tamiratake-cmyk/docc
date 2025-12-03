@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/app/pages/addNote_page.dart';
+import 'package:flutter_application_1/app/pages/edit_notes_page.dart';
 import 'package:flutter_application_1/app/pages/login_page.dart';
+import 'package:flutter_application_1/app/pages/note_detail.dart';
+import 'package:flutter_application_1/app/pages/notes_page.dart';
+import 'package:flutter_application_1/app/pages/setting_page.dart';
 import 'package:flutter_application_1/app/pages/signup_page.dart';
 import 'package:flutter_application_1/app/screens/battery.dart';
 import 'package:flutter_application_1/app/screens/home_page.dart';
@@ -7,6 +12,7 @@ import 'package:flutter_application_1/app/screens/user_page.dart';
 import 'package:flutter_application_1/app/pages/camer_page.dart';
 import 'package:flutter_application_1/app/pages/map_page.dart';
 import 'package:flutter_application_1/data/services/auth_service.dart';
+import 'package:flutter_application_1/domain/entities/notes.dart';
 import 'package:go_router/go_router.dart';
 
 /// Responsive navigation using GoRouter's StatefulShellRoute.
@@ -42,6 +48,27 @@ class AppRouter {
         name: 'signup',
         builder: (context, state) => const SignupPage(),
       ),
+      GoRoute(
+        path: '/add-note',
+        name: 'add-note',
+        builder: (context, state) => const AddNotePage(),
+      ),
+       GoRoute(
+        path: '/view-note',
+        name: 'view-note',
+        builder: (context, state) {
+          final note = state.extra as Note;
+          return NoteDetailPage(note: note);
+        },
+      ),
+       GoRoute(
+        path: '/edit-note',
+        name: 'edit-note',
+        builder: (context, state) {
+          final note = state.extra as Note;
+          return EditNotesPage(note: note);
+        },
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return _ResponsiveScaffold(navigationShell: navigationShell);
@@ -76,30 +103,25 @@ class AppRouter {
               ),
             ),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/battery',
-              name: 'battery',
-              builder: (context, state) => BatteryLevelScreen(),
-            ),
-          ]),
-          
           // StatefulShellBranch(routes: [
           //   GoRoute(
-          //     path: '/app1',
-          //     name: 'app1',
-          //     builder: (context, state) => const Scaffold(
-          //       body: Center(child: Text('App 1 - Placeholder')),
-          //     ),
+          //     path: '/battery',
+          //     name: 'battery',
+          //     builder: (context, state) => BatteryLevelScreen(),
           //   ),
           // ]),
           StatefulShellBranch(routes: [
             GoRoute(
+              path: '/notes',
+              name: 'notes',
+              builder: (context, state) => const NotesPage(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
               path: '/settings',
               name: 'settings',
-              builder: (context, state) => const Scaffold(
-                body: Center(child: Text('Settings - Placeholder')),
-              ),
+              builder: (context, state) => const SettingPage(),
             ),
           ]),
           // StatefulShellBranch(routes: [
@@ -115,8 +137,8 @@ class AppRouter {
           //     name: 'map',
           //     builder: (context, state) => const MapPage(),
           //   ),
+
           // ]),
-         
         ],
       ),
     ],
@@ -160,14 +182,29 @@ class _ResponsiveScaffold extends StatelessWidget {
                       label: Text('User'),
                     ),
                     NavigationRailDestination(
+                      icon: Icon(Icons.battery_std_outlined),
+                      selectedIcon: Icon(Icons.battery_std),
+                      label: Text('Battery'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.note_alt_outlined),
+                      selectedIcon: Icon(Icons.note_alt),
+                      label: Text('Notes'),
+                    ),
+                    NavigationRailDestination(
                       icon: Icon(Icons.settings_outlined),
                       selectedIcon: Icon(Icons.settings),
                       label: Text('Settings'),
                     ),
                     NavigationRailDestination(
-                      icon: Icon(Icons.battery_std_outlined),
-                      selectedIcon: Icon(Icons.battery_std),
-                      label: Text('Battery'),
+                      icon: Icon(Icons.camera_alt_outlined),
+                      selectedIcon: Icon(Icons.camera_alt),
+                      label: Text('Camera'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.map_outlined),
+                      selectedIcon: Icon(Icons.map),
+                      label: Text('Map'),
                     ),
                   ],
                 ),
@@ -185,12 +222,11 @@ class _ResponsiveScaffold extends StatelessWidget {
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
               NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'User'),
-              NavigationDestination(icon: Icon(Icons.battery_full_outlined), selectedIcon: Icon(Icons.battery_full), label: 'Battery'),
-              NavigationDestination(icon: Icon(Icons.apps), selectedIcon: Icon(Icons.apps), label: 'App 1'),
+              // NavigationDestination(icon: Icon(Icons.battery_full_outlined), selectedIcon: Icon(Icons.battery_full), label: 'Battery'),
+              NavigationDestination(icon: Icon(Icons.note_alt_outlined), selectedIcon: Icon(Icons.note_alt), label: 'Notes'),
               NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
-              NavigationDestination(icon: Icon(Icons.camera_alt_outlined), selectedIcon: Icon(Icons.camera_alt), label: 'Camera'),
-              NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Map'),
-              NavigationDestination(icon: Icon(Icons.web_outlined), selectedIcon: Icon(Icons.web), label: 'Web'),
+              // NavigationDestination(icon: Icon(Icons.camera_alt_outlined), selectedIcon: Icon(Icons.camera_alt), label: 'Camera'),
+              // NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Map'),
             ],
           ),
         );
