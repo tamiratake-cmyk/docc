@@ -16,11 +16,12 @@ class LoadNotes extends NotesEvent {
 
 class AddNote extends NotesEvent{
   final Note note;
+  final List<String> attachmentPaths;
 
-  const AddNote(this.note);
+  const AddNote(this.note, {this.attachmentPaths = const []});
 
   @override
-  List<Object> get props => [note];
+  List<Object> get props => [note, attachmentPaths];
 }
 
 class searchNotes extends NotesEvent {
@@ -54,11 +55,17 @@ class NotesUpdated  extends NotesEvent {
 
 class UpdateNote extends NotesEvent {
   final Note note;
+  final List<String> newAttachmentPaths;
+  final List<String> retainedImageUrls;
 
-  const UpdateNote(this.note);
+  const UpdateNote(
+    this.note, {
+    this.newAttachmentPaths = const [],
+    this.retainedImageUrls = const [],
+  });
 
   @override
-  List<Object> get props => [note];
+  List<Object> get props => [note, newAttachmentPaths, retainedImageUrls];
 }
 
 

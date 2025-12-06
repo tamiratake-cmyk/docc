@@ -15,6 +15,7 @@ class NoteModel extends Note {
     required DateTime updatedAt,
     bool pinned = false,
     String? color,
+    List<String> imageUrls = const [],
   }) : super(
           id: id,
           title: title,
@@ -25,6 +26,7 @@ class NoteModel extends Note {
           updatedAt: updatedAt,
           pinned: pinned,
           color: color,
+          imageUrls: imageUrls,
         );
 
   factory NoteModel.fromDoc(DocumentSnapshot doc) {
@@ -54,6 +56,9 @@ class NoteModel extends Note {
       updatedAt: updated,
       pinned: data['pinned'] ?? false,
       color: data['color'],
+      imageUrls: data['imageUrls'] != null
+          ? List<String>.from(data['imageUrls'] as List<dynamic>)
+          : const [],
     );
   }
 
@@ -82,6 +87,7 @@ class NoteModel extends Note {
       updatedAt: note.updatedAt,
       pinned: note.pinned,
       color: note.color,
+      imageUrls: note.imageUrls,
     );
   }
 
@@ -95,6 +101,7 @@ class NoteModel extends Note {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'pinned': pinned,
       'color': color,
+      'imageUrls': imageUrls,
     };
   }
 
@@ -109,6 +116,7 @@ class NoteModel extends Note {
       updatedAt: updatedAt,
       pinned: pinned,
       color: color,
+      imageUrls: imageUrls,
     );
   }
 }

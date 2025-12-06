@@ -20,6 +20,7 @@ abstract class NoteRepository {
 
   Future<List<Note>> searchNotes(String uid, String query);
   Future<List<Note>> filterNotesByTag(String uid, String tag);
+  Future<List<String>> uploadNoteImages(String uid, List<String> filePaths);
 
 }
 

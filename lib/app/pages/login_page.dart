@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/data/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginPage extends StatefulWidget {
@@ -158,6 +159,26 @@ class _LoginPageState extends State<LoginPage> {
                       child: const Text('Sign Up'),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () async {
+                    final authService = AuthService.instance;
+                    await authService.continueAsGuest();
+                    if (mounted) {
+                      context.go('/');
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continue as Guest',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ],
             ),

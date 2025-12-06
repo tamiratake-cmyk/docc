@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform, PlatformDispatcher;
+import 'package:flutter_application_1/app/bloc/language/lang_bloc.dart';
+import 'package:flutter_application_1/app/bloc/language/lang_event.dart';
+import 'package:flutter_application_1/app/bloc/language/lang_state.dart';
 import 'package:flutter_application_1/app/bloc/theme/theme_bloc.dart';
 import 'package:flutter_application_1/app/bloc/theme/theme_event.dart';
 import 'package:flutter_application_1/app/bloc/theme/theme_state.dart';
@@ -14,6 +17,10 @@ import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_application_1/app/navigation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,10 +41,11 @@ void main() async {
   // }
       
   await dotenv.load(fileName: '.env');
-  
+
   await NotificationService.init();
 
-  setupInjector(); // Initialize Dependency Injection
+  await setupInjector(); // Initialize Dependency Injection (now async for Hive)
+  
   try {
     // Only attempt to initialize Firebase on platforms we've configured.
     if (kIsWeb ||
@@ -84,12 +92,16 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider<ThemeBloc>(
           create: (_) => sl<ThemeBloc>()..add(LoadTheme()),
+
+        ),
+        BlocProvider<LangBloc>(
+          create: (_) => sl<LangBloc>()..add(LoadLanguageEvent()),    
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
-        builder: (context, state) {
+        builder: (context, themeState) {
           ThemeData themeMode;
-          switch (state.theme) {
+          switch (themeState.theme) {
             case AppThemeMode.light:
               themeMode = AppTheme.lightTheme;
               break;
@@ -103,10 +115,24 @@ class MyApp extends StatelessWidget {
             : AppTheme.lightTheme;
           }
 
-          return MaterialApp.router(
-            debugShowCheckedModeBanner: false,
-            theme: themeMode,
-            routerConfig: AppRouter.router,
+          return BlocBuilder<LangBloc, LangState>(
+            builder: (context, langState) {
+              return MaterialApp.router(
+                debugShowCheckedModeBanner: false,
+                theme: themeMode,
+                routerConfig: AppRouter.router,
+                locale: langState.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+
+                localizationsDelegates: [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+
+              );
+            },
           );
         },
       ),

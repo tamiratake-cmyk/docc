@@ -34,14 +34,16 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onLoadNotes(LoadNotes event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+
+    
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     emit(NotesLoading());
     await _noteSubscription?.cancel();
-    _noteSubscription = noteRepository.getNotes(uid).listen(
-          (notes) => add(NotesUpdated(notes, uid)),
+    _noteSubscription = noteRepository.getNotes(uid ?? '').listen(
+          (notes) => add(NotesUpdated(notes, uid ?? '')),
           onError: (error) {
             emit(NotesFailure(error.toString()));
           },
@@ -68,12 +70,29 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
       print("Notification error: $e");
     }
 
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     try {
-      await noteRepository.addNote(uid, NoteModel.fromEntity(event.note));
+      var uploadedUrls = <String>[];
+      if (event.attachmentPaths.isNotEmpty) {
+        try {
+          uploadedUrls =
+              await noteRepository.uploadNoteImages(uid ?? "", event.attachmentPaths);
+        } catch (e) {
+          // Log but allow note creation to proceed without attachments.
+          print('Image upload failed: $e');
+          uploadedUrls = <String>[];
+        }
+      }
+
+      final noteToSave = event.note.copyWith(
+        imageUrls: [...event.note.imageUrls, ...uploadedUrls],
+        updatedAt: DateTime.now(),
+      );
+
+      await noteRepository.addNote(uid ?? "", NoteModel.fromEntity(noteToSave));
     } catch (e) {
       emit(NotesFailure(e.toString()));
     }
@@ -82,10 +101,10 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
   Future<void> _onSearchNotes(
       searchNotes event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     
     List<String> availableTags = [];
     if (state is NotesLoaded) {
@@ -94,8 +113,8 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
     emit(NotesLoading());
     try {
-      final notes = await noteRepository.searchNotes(uid, event.query);
-      emit(NotesLoaded(notes, uid, query: event.query, availableTags: availableTags));
+      final notes = await noteRepository.searchNotes(uid ?? "", event.query);
+      emit(NotesLoaded(notes, uid ?? "", query: event.query, availableTags: availableTags));
     } catch (e) {
       emit(NotesFailure(e.toString()));
     }
@@ -103,10 +122,10 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onFilterNotesByTag(FilterNotesByTag event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
 
     List<String> availableTags = [];
     if (state is NotesLoaded) {
@@ -115,8 +134,8 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
     emit(NotesLoading());
     try {
-      final notes = await noteRepository.filterNotesByTag(uid, event.tag);
-      emit(NotesLoaded(notes, uid, tag: event.tag, availableTags: availableTags));
+      final notes = await noteRepository.filterNotesByTag(uid ?? "", event.tag);
+      emit(NotesLoaded(notes, uid ?? "", tag: event.tag, availableTags: availableTags));
     } catch (e) {
       emit(NotesFailure(e.toString()));
     }
@@ -124,12 +143,12 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onDeleteNote(DeleteNote event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+      // if (uid == null) {
+      //   emit(const NotesFailure("User not authenticated"));
+      //   return;
+      // }
     try {
-      await noteRepository.deleteNote(uid, event.noteId);
+      await noteRepository.deleteNote(uid ?? "", event.noteId);
     } catch (e) {
       emit(NotesFailure(e.toString()));
     }
@@ -138,10 +157,10 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
   Future<void> _onToggleTask(
       ToggleTaskEvent event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     try {
       final currentState = state;
       if (currentState is NotesLoaded) {
@@ -190,9 +209,11 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
             createdAt: note.createdAt,
             updatedAt: DateTime.now(),
             pinned: note.pinned,
-            color: note.color);
+            color: note.color,
+            imageUrls: note.imageUrls,
+        );
 
-        await noteRepository.updateNote(uid, updatedNote);
+        await noteRepository.updateNote(uid ?? "", updatedNote);
       }
     } catch (e) {
       emit(NotesFailure(e.toString()));
@@ -201,10 +222,10 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onAddTask(AddTaskEvent event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     try {
       final currentState = state;
       if (currentState is NotesLoaded) {
@@ -249,9 +270,11 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
             createdAt: note.createdAt,
             updatedAt: DateTime.now(),
             pinned: note.pinned,
-            color: note.color);
+            color: note.color,
+            imageUrls: note.imageUrls,
+        );
 
-        await noteRepository.updateNote(uid, updatedNote);
+        await noteRepository.updateNote(uid ?? "", updatedNote);
       }
     } catch (e) {
       emit(NotesFailure(e.toString()));
@@ -260,14 +283,34 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onUpdateNote(UpdateNote event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     try {
-      // Expecting the UpdateNote event to carry a full Note entity.
-      // Convert to NoteModel and persist the update.
-      await noteRepository.updateNote(uid, NoteModel.fromEntity(event.note));
+      var uploadedUrls = <String>[];
+      if (event.newAttachmentPaths.isNotEmpty) {
+        try {
+          uploadedUrls = await noteRepository.uploadNoteImages(
+            uid ?? "",
+            event.newAttachmentPaths,
+          );
+        } catch (e) {
+          print('Image upload failed: $e');
+          uploadedUrls = <String>[];
+        }
+      }
+
+      final retained = event.retainedImageUrls.isNotEmpty
+          ? event.retainedImageUrls
+          : event.note.imageUrls;
+
+      final noteToUpdate = event.note.copyWith(
+        imageUrls: [...retained, ...uploadedUrls],
+        updatedAt: DateTime.now(),
+      );
+
+      await noteRepository.updateNote(uid ?? "", NoteModel.fromEntity(noteToUpdate));
     } catch (e) {
       emit(NotesFailure(e.toString()));
     }
@@ -275,12 +318,12 @@ class NotesBloc extends Bloc<NotesEvent, NotesState> {
 
   Future<void> _onRestoreNote(RestoreNote event, Emitter<NotesState> emit) async {
     final uid = authRepository.currentUserId();
-    if (uid == null) {
-      emit(const NotesFailure("User not authenticated"));
-      return;
-    }
+    // if (uid == null) {
+    //   emit(const NotesFailure("User not authenticated"));
+    //   return;
+    // }
     try {
-      await noteRepository.addNote(uid, NoteModel.fromEntity(event.note));
+      await noteRepository.addNote(uid ?? "", NoteModel.fromEntity(event.note));
       add(const LoadNotes());
     } catch (e) {
       emit(NotesFailure('Failed to restore note: $e'));

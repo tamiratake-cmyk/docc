@@ -6,11 +6,11 @@ import 'package:flutter_application_1/app/pages/note_detail.dart';
 import 'package:flutter_application_1/app/pages/notes_page.dart';
 import 'package:flutter_application_1/app/pages/setting_page.dart';
 import 'package:flutter_application_1/app/pages/signup_page.dart';
-import 'package:flutter_application_1/app/screens/battery.dart';
+import 'package:flutter_application_1/app/screens/about_screen.dart';
 import 'package:flutter_application_1/app/screens/home_page.dart';
-import 'package:flutter_application_1/app/screens/user_page.dart';
-import 'package:flutter_application_1/app/pages/camer_page.dart';
-import 'package:flutter_application_1/app/pages/map_page.dart';
+import 'package:flutter_application_1/app/screens/privacy_policy_screen.dart';
+import 'package:flutter_application_1/app/screens/terms_screen.dart';
+// import 'package:flutter_application_1/app/screens/user_page.dart';
 import 'package:flutter_application_1/data/services/auth_service.dart';
 import 'package:flutter_application_1/domain/entities/notes.dart';
 import 'package:go_router/go_router.dart';
@@ -21,20 +21,21 @@ import 'package:go_router/go_router.dart';
 class AppRouter {
   static final router = GoRouter(
     debugLogDiagnostics: true,
-    initialLocation: '/login',
+    initialLocation: '/',
     refreshListenable: AuthService.instance,
     redirect: (context, state) {
-      final isLoggedIn = AuthService.instance.isLoggedIn;
-      final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+      final authService = AuthService.instance;
+      final isLoggedIn = authService.isLoggedIn;
+      final isAuthRoute =
+          state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup';
 
-      if (!isLoggedIn && !isLoggingIn) {
-        return '/login';
-      }
-
-      if (isLoggedIn && isLoggingIn) {
+      // If already logged in and trying to access auth routes, redirect to home
+      if (isLoggedIn && isAuthRoute) {
         return '/';
       }
 
+      // Allow all other routes (guest mode is enabled by default)
       return null;
     },
     routes: [
@@ -53,7 +54,7 @@ class AppRouter {
         name: 'add-note',
         builder: (context, state) => const AddNotePage(),
       ),
-       GoRoute(
+      GoRoute(
         path: '/view-note',
         name: 'view-note',
         builder: (context, state) {
@@ -61,7 +62,7 @@ class AppRouter {
           return NoteDetailPage(note: note);
         },
       ),
-       GoRoute(
+      GoRoute(
         path: '/edit-note',
         name: 'edit-note',
         builder: (context, state) {
@@ -69,76 +70,79 @@ class AppRouter {
           return EditNotesPage(note: note);
         },
       ),
+      GoRoute(
+        path: '/about',
+        name: 'about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        name: 'privacy-policy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/terms',
+        name: 'terms',
+        builder: (context, state) => const TermsScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return _ResponsiveScaffold(navigationShell: navigationShell);
         },
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/',
-              name: 'home',
-              builder: (context, state) => const HomePage(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/user',
-              name: 'user',
-              builder: (context, state) => const UserPage(),
-            ),
-            GoRoute(
-              path: '/profile',
-              name: 'profile',
-              pageBuilder: (context, state) => CustomTransitionPage(
-                key: state.pageKey,
-                child: const UserPage(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.ease;
-                  final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  return SlideTransition(position: animation.drive(tween), child: child);
-                },
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                name: 'home',
+                builder: (context, state) => const HomePage(),
               ),
-            ),
-          ]),
-          // StatefulShellBranch(routes: [
-          //   GoRoute(
-          //     path: '/battery',
-          //     name: 'battery',
-          //     builder: (context, state) => BatteryLevelScreen(),
-          //   ),
-          // ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/notes',
-              name: 'notes',
-              builder: (context, state) => const NotesPage(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/settings',
-              name: 'settings',
-              builder: (context, state) => const SettingPage(),
-            ),
-          ]),
-          // StatefulShellBranch(routes: [
-          //   GoRoute(
-          //     path: '/camera',
-          //     name: 'camera',
-          //     builder: (context, state) => const CamerPage(),
-          //   ),
-          // ]),
-          // StatefulShellBranch(routes: [
-          //   GoRoute(
-          //     path: '/map',
-          //     name: 'map',
-          //     builder: (context, state) => const MapPage(),
-          //   ),
-
-          // ]),
+            ],
+          ),
+          // StatefulShellBranch(
+          //   routes: [
+          //     GoRoute(
+          //       path: '/profile',
+          //       name: 'profile',
+          //       pageBuilder: (context, state) => CustomTransitionPage(
+          //         key: state.pageKey,
+          //         child: const UserPage(),
+          //         transitionsBuilder:
+          //             (context, animation, secondaryAnimation, child) {
+          //               const begin = Offset(1.0, 0.0);
+          //               const end = Offset.zero;
+          //               const curve = Curves.ease;
+          //               final tween = Tween(
+          //                 begin: begin,
+          //                 end: end,
+          //               ).chain(CurveTween(curve: curve));
+          //               return SlideTransition(
+          //                 position: animation.drive(tween),
+          //                 child: child,
+          //               );
+          //             },
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/notes',
+                name: 'notes',
+                builder: (context, state) => const NotesPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                name: 'settings',
+                builder: (context, state) => const SettingPage(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -150,7 +154,10 @@ class _ResponsiveScaffold extends StatelessWidget {
   const _ResponsiveScaffold({required this.navigationShell});
 
   void _onTap(int index) {
-    navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
   }
 
   @override
@@ -176,16 +183,11 @@ class _ResponsiveScaffold extends StatelessWidget {
                       selectedIcon: Icon(Icons.home),
                       label: Text('Home'),
                     ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person_outline),
-                      selectedIcon: Icon(Icons.person),
-                      label: Text('User'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.battery_std_outlined),
-                      selectedIcon: Icon(Icons.battery_std),
-                      label: Text('Battery'),
-                    ),
+                    // NavigationRailDestination(
+                    //   icon: Icon(Icons.person_outline),
+                    //   selectedIcon: Icon(Icons.person),
+                    //   label: Text('Profile'),
+                    // ),
                     NavigationRailDestination(
                       icon: Icon(Icons.note_alt_outlined),
                       selectedIcon: Icon(Icons.note_alt),
@@ -196,16 +198,6 @@ class _ResponsiveScaffold extends StatelessWidget {
                       selectedIcon: Icon(Icons.settings),
                       label: Text('Settings'),
                     ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.camera_alt_outlined),
-                      selectedIcon: Icon(Icons.camera_alt),
-                      label: Text('Camera'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.map_outlined),
-                      selectedIcon: Icon(Icons.map),
-                      label: Text('Map'),
-                    ),
                   ],
                 ),
                 const VerticalDivider(width: 1),
@@ -214,19 +206,32 @@ class _ResponsiveScaffold extends StatelessWidget {
             ),
           );
         }
-        return Scaffold(
+        return  Scaffold(
           body: navigationShell,
-          bottomNavigationBar: NavigationBar(
+          bottomNavigationBar:  NavigationBar(
             selectedIndex: navigationShell.currentIndex,
             onDestinationSelected: _onTap,
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'User'),
-              // NavigationDestination(icon: Icon(Icons.battery_full_outlined), selectedIcon: Icon(Icons.battery_full), label: 'Battery'),
-              NavigationDestination(icon: Icon(Icons.note_alt_outlined), selectedIcon: Icon(Icons.note_alt), label: 'Notes'),
-              NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
-              // NavigationDestination(icon: Icon(Icons.camera_alt_outlined), selectedIcon: Icon(Icons.camera_alt), label: 'Camera'),
-              // NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Map'),
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              // NavigationDestination(
+              //   icon: Icon(Icons.person_outline),
+              //   selectedIcon: Icon(Icons.person),
+              //   label: 'Profile',
+              // ),
+               NavigationDestination(
+                icon: Icon(Icons.note_alt_outlined),
+                selectedIcon: Icon(Icons.note_alt),
+                label: 'Notes',
+              ),
+               NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: 'Settings',
+              ),
             ],
           ),
         );

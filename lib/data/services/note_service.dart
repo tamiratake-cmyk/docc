@@ -1,14 +1,17 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
 import 'package:flutter_application_1/data/models/task_model.dart';
-import 'package:flutter_application_1/domain/entities/notes.dart';
-import 'package:flutter_application_1/domain/entities/task.dart';
 
 class NoteService {
    final FirebaseFirestore _db;
+   final FirebaseStorage _storage;
 
-  NoteService({FirebaseFirestore? fireStore})
-      : _db = fireStore ?? FirebaseFirestore.instance;
+  NoteService({FirebaseFirestore? fireStore, FirebaseStorage? storage})
+      : _db = fireStore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance;
 
 
   Stream<List<NoteModel>> getNotes(String uid){
@@ -79,6 +82,24 @@ Future<void> toggleTask(
 
   Future<void> deleteNote(String uid, String noteId) async {
     await _db.collection('users/$uid/notes').doc(noteId).delete();
+  }
+
+  Future<List<String>> uploadNoteImages(String uid, List<File> files) async {
+    final urls = <String>[];
+    for (final file in files) {
+      final fileName = Uri.file(file.path).pathSegments.isNotEmpty
+          ? Uri.file(file.path).pathSegments.last
+          : 'note_image';
+      final uniqueName =
+          '${DateTime.now().millisecondsSinceEpoch}_${fileName.replaceAll(' ', '_')}';
+      final ref = _storage
+          .ref()
+          .child('users/$uid/note_images/$uniqueName');
+      final uploadTask = await ref.putFile(file);
+      final url = await uploadTask.ref.getDownloadURL();
+      urls.add(url);
+    }
+    return urls;
   }
 
   Future<List<NoteModel>> searchNotes(String uid, String query) async {

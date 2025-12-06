@@ -4,6 +4,7 @@ import 'package:flutter_application_1/app/bloc/ai/ai_bloc.dart';
 import 'package:flutter_application_1/app/bloc/ai/ai_event.dart';
 import 'package:flutter_application_1/app/bloc/ai/ai_state.dart';
 import 'package:flutter_application_1/app/widgets/error_view.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
 import 'package:flutter_application_1/app/widgets/loading_view.dart';
 import 'package:flutter_application_1/domain/entities/notes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,7 +13,6 @@ import 'package:flutter_application_1/app/bloc/notes/notes_event.dart';
 import 'package:flutter_application_1/app/bloc/notes/notes_state.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
 import 'package:flutter_application_1/data/models/task_model.dart';
-// ...existing imports...
 import 'package:flutter_application_1/data/helpers/di/injector.dart';
 import 'package:go_router/go_router.dart';
 
@@ -71,7 +71,7 @@ class _NotesViewState extends State<NotesView> {
           children: [
             ListTile(
               leading: const Icon(Icons.summarize),
-              title: const Text('Summarize'),
+              title: const Text('Summarize it'),
               onTap: () {
                 Navigator.of(context).pop();
                 _handleSummarize(note);
@@ -79,7 +79,7 @@ class _NotesViewState extends State<NotesView> {
             ),
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Rewrite'),
+              title: const Text('Rewrite with flair'),
               onTap: () {
                 Navigator.of(context).pop();
                 _handleRewrite(note);
@@ -87,7 +87,7 @@ class _NotesViewState extends State<NotesView> {
             ),
             ListTile(
               leading: const Icon(Icons.chat_bubble),
-              title: const Text('Chat'),
+              title: const Text('Ask anything'),
               onTap: () {
                 Navigator.of(context).pop();
                 _handleChat(note);
@@ -100,45 +100,62 @@ class _NotesViewState extends State<NotesView> {
   }
 
   Future<void> _handleSummarize(Note note) async {
-    final aiBloc = sl<AiBloc>();
+    final aiBloc = context.read<AiBloc>();
     final dialogContext = context;
-    // Use an AlertDialog for progress so it renders correctly on all themes
+    // Show progress dialog
     showDialog(
       context: dialogContext,
-      barrierDismissible: true,
+      barrierDismissible: false,
       builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())),
     );
 
-    aiBloc.add(Summarize(note.content));
+    try {
+      aiBloc.add(Summarize(note.content));
+      final state = await aiBloc.stream
+          .firstWhere((s) => s is AiLoaded || s is AiFailure)
+          .timeout(const Duration(seconds: 20), onTimeout: () => AiFailure('AI request timed out'));
 
-    // Wait for AiLoaded or AiFailure but don't hang forever — add a timeout.
-    final state = await aiBloc.stream
-        .firstWhere((s) => s is AiLoaded || s is AiFailure)
-        .timeout(const Duration(seconds: 20), onTimeout: () => AiFailure('AI request timed out'));
+      // Dismiss progress dialog if still open
+      try {
+        if (Navigator.of(dialogContext, rootNavigator: true).canPop()) Navigator.of(dialogContext, rootNavigator: true).pop();
+      } catch (_) {}
 
-
-    print('AI State: ${state}'); // Debug print statement
-    
-    context.pop();
-    // Navigator.of(dialogContext).pop();
-
-    if (state is AiLoaded) {
-      final text = (state.response ?? '').trim();
-      
-      print('Summary Text: $text'); // Debug print statement
-
-      showDialog(
+      if (state is AiLoaded) {
+        final text = state.response.trim();
+        final locale = AppLocalizations.of(dialogContext);
+        await showDialog(
+          context: dialogContext,
+          builder: (_) => AlertDialog(
+            title: Text(locale?.summary ?? 'Instant summary'),
+            content: Text(text.isEmpty ? 'No summary returned. Try again with more details.' : text),
+            actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+          ),
+        );
+      } else if (state is AiFailure) {
+        final err = state.error;
+        await showDialog(
+          context: dialogContext,
+          builder: (_) => AlertDialog(
+              title: const Text('AI hiccup'),
+              content: Text(err),
+              actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+            ),
+        );
+      }
+    } catch (e) {
+      // Ensure dialog dismissed and show error
+      try {
+        if (Navigator.of(dialogContext, rootNavigator: true).canPop()) Navigator.of(dialogContext, rootNavigator: true).pop();
+      } catch (_) {}
+      await showDialog(
         context: dialogContext,
         builder: (_) => AlertDialog(
-          title: const Text('Summary'),
-          content: Text(text.isEmpty ? 'No summary returned by the AI.' : text),
+          title: const Text('AI hiccup'),
+          content: Text(e.toString()),
+          actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
         ),
       );
-    } else if (state is AiFailure) {
-      print('AI Failure: ${state.error}'); // Debug print statement
-      ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
     }
-    await aiBloc.close();
   }
 
   Future<void> _handleRewrite(Note note) async {
@@ -146,13 +163,13 @@ class _NotesViewState extends State<NotesView> {
     final result = await showDialog<String?>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Rewrite Instruction'),
+        title: const Text('Rewrite it your way'),
         content: TextField(controller: instructionController, decoration: const InputDecoration(hintText: 'Instruction')),
         actions: [TextButton(onPressed: () => context.pop(), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.of(context).pop(instructionController.text.trim()), child: const Text('OK'))],
       ),
     );
       if (result == null || result.isEmpty) return;
-    final aiBloc = sl<AiBloc>();
+    final aiBloc = context.read<AiBloc>();
     showDialog(context: context, barrierDismissible: false, builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())));
     aiBloc.add(ReWrite(result, note.content));
     final state = await aiBloc.stream
@@ -162,12 +179,11 @@ class _NotesViewState extends State<NotesView> {
     context.pop();
 
     if (state is AiLoaded) {
-      final text = (state.response ?? '').trim();
-      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Rewrite'), content: Text(text.isEmpty ? 'No rewrite returned by the AI.' : text)));
+      final text = state.response.trim();
+      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Fresh rewrite'), content: Text(text.isEmpty ? 'No rewrite returned. Try a clearer instruction.' : text)));
     } else if (state is AiFailure) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
     }
-    await aiBloc.close();
   }
 
   Future<void> _handleChat(Note note) async {
@@ -175,13 +191,13 @@ class _NotesViewState extends State<NotesView> {
     final result = await showDialog<String?>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Ask about this note'),
-        content: TextField(controller: questionController, decoration: const InputDecoration(hintText: 'Question')),
+        title: const Text('Ask this note anything'),
+        content: TextField(controller: questionController, decoration: const InputDecoration(hintText: 'E.g., “What are the next steps?”')),
         actions: [TextButton(onPressed: () => context.pop(), child: const Text('Cancel')), TextButton(onPressed: () => context.pop(questionController.text.trim()), child: const Text('Ask'))],
       ),
     );
     if (result == null || result.isEmpty) return;
-    final aiBloc = sl<AiBloc>();
+    final aiBloc = context.read<AiBloc>();
     showDialog(context: context, barrierDismissible: false, builder: (_) => const AlertDialog(content: Center(child: CircularProgressIndicator())));
     aiBloc.add(Chat(result, note.content));
     final state = await aiBloc.stream
@@ -193,12 +209,11 @@ class _NotesViewState extends State<NotesView> {
 
     print('AI State: ${state}');
     if (state is AiLoaded) {
-      final text = (state.response ?? '').trim();
-      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Chat'), content: Text(text.isEmpty ? 'No reply returned by the AI.' : text)));
+      final text = state.response.trim();
+      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('AI says'), content: Text(text.isEmpty ? 'No reply returned. Ask again with more context.' : text)));
     } else if (state is AiFailure) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI error: ${state.error}')));
     }
-    await aiBloc.close();
   }
 
   @override
@@ -209,9 +224,10 @@ class _NotesViewState extends State<NotesView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notes Page'),
+        title: Text(loc?.appTitle ?? 'Notes & Tasks, your way'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -227,7 +243,7 @@ class _NotesViewState extends State<NotesView> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search notes...',
+                hintText: loc?.search ?? 'Find ideas, tasks, tags…',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15.0),
@@ -321,9 +337,9 @@ class _NotesViewState extends State<NotesView> {
                     return AnimatedCrossFade(
                       firstChild: Center(
                         child: Text(
-                          _selectedTag != null
-                              ? 'No notes found with tag "$_selectedTag".'
-                              : 'No notes available. Tap + to add a new note.',
+                            _selectedTag != null
+                              ? 'Nothing here for "$_selectedTag". Try another tag or add a note!'
+                              : 'No notes yet. Tap + to jot your next idea or task.',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
@@ -412,6 +428,39 @@ class _NotesViewState extends State<NotesView> {
                                           ))
                                       .toList(),
                                 ),
+                              if (note.imageUrls.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 70,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: note.imageUrls.length,
+                                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                    itemBuilder: (context, imageIndex) {
+                                      final imageUrl = note.imageUrls[imageIndex];
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          imageUrl,
+                                          width: 70,
+                                          height: 70,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stack) => Container(
+                                            width: 70,
+                                            height: 70,
+                                            color: Colors.grey.shade200,
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.broken_image_outlined,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           trailing: Row(
@@ -419,8 +468,8 @@ class _NotesViewState extends State<NotesView> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.smart_toy_outlined),
-                                onPressed: () => _showAiOptions(note),
-                                tooltip: 'AI actions',
+                                  onPressed: () => _showAiOptions(note),
+                                  tooltip: loc?.askAI ?? 'Ask AI',
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete),

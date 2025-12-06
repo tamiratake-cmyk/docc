@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/app/widgets/pressable.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:flutter_application_1/app/bloc/notes/notes_bloc.dart';
 import 'package:flutter_application_1/app/bloc/notes/notes_event.dart';
@@ -8,6 +12,7 @@ import 'package:flutter_application_1/app/bloc/notes/notes_state.dart';
 import 'package:flutter_application_1/data/helpers/di/injector.dart';
 import 'package:flutter_application_1/data/models/notes_model.dart';
 import 'package:flutter_application_1/data/models/task_model.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddNotePage extends StatefulWidget {
   const AddNotePage({super.key});
@@ -21,6 +26,8 @@ class _AddNotePageState extends State<AddNotePage> {
   final _contentController = TextEditingController();
   final List<TaskModel> _tasks = [];
   final _taskController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  final List<XFile> _pickedImages = [];
   String _selectedTag = '';
 
   @override
@@ -49,6 +56,40 @@ class _AddNotePageState extends State<AddNotePage> {
     });
   }
 
+  Future<void> _pickFromGallery() async {
+    try {
+      final images = await _imagePicker.pickMultiImage();
+      if (images.isEmpty) return;
+      setState(() {
+        _pickedImages.addAll(images);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick images: $e')),
+      );
+    }
+  }
+
+  Future<void> _captureImage() async {
+    try {
+      final image = await _imagePicker.pickImage(source: ImageSource.camera);
+      if (image == null) return;
+      setState(() {
+        _pickedImages.add(image);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to capture image: $e')),
+      );
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _pickedImages.removeAt(index);
+    });
+  }
+
   void _saveNote(BuildContext context) {
     if (_titleController.text.isEmpty && _contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,12 +109,16 @@ class _AddNotePageState extends State<AddNotePage> {
       updatedAt: DateTime.now(),
     );
 
-    context.read<NotesBloc>().add(AddNote(note));
+    final attachmentPaths = _pickedImages.map((image) => image.path).toList();
+    context
+      .read<NotesBloc>()
+      .add(AddNote(note, attachmentPaths: attachmentPaths));
     context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return BlocProvider(
       create: (context) => sl<NotesBloc>(),
       child: BlocConsumer<NotesBloc, NotesState>(
@@ -87,7 +132,7 @@ class _AddNotePageState extends State<AddNotePage> {
         builder: (context, state) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Add Note'),
+              title: Text(loc?.addNote ?? 'Add Note'),
               actions: [
                 // InkWell(
                 //   child: const Icon(Icons.check),
@@ -127,9 +172,9 @@ class _AddNotePageState extends State<AddNotePage> {
                       border: InputBorder.none,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const Text('Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  // const Divider(),
+                  Text(loc?.addTask ?? 'Add Task', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -147,26 +192,14 @@ class _AddNotePageState extends State<AddNotePage> {
                       );
                     },
                   ),
-                  Wrap(
-                       spacing: 8,
-                       children: ["work", "personal", "urgent", "Ideas", "church", "Todo"].map((tag) =>
-                        ChoiceChip(
-                          selected: _selectedTag == tag,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedTag = selected ? tag : '';
-                            });
-                          },
-                          label: Text(tag)))
-                          .toList(),
-                  ),
+                 
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _taskController,
-                          decoration: const InputDecoration(
-                            hintText: 'Add a task...',
+                          decoration: InputDecoration(
+                            hintText: loc?.addTask ?? 'Add Task',
                             border: InputBorder.none,
                           ),
                           onSubmitted: (_) => _addTask(),
@@ -175,6 +208,100 @@ class _AddNotePageState extends State<AddNotePage> {
                       IconButton(
                         icon: const Icon(Icons.add),
                         onPressed: _addTask,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Text(
+                    'Tags',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Wrap(
+                       spacing: 8,
+                       children: ["work", "personal", "urgent","Scool", "Ideas", "church", "Todo"].map((tag) =>
+                        ChoiceChip(
+                          selected: _selectedTag == tag,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedTag = selected ? tag : '';
+                            });
+                          
+                          },
+                          label: Text(tag)))
+                          .toList(),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Attachments',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  if (_pickedImages.isNotEmpty)
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: List.generate(_pickedImages.length, (index) {
+                        final file = File(_pickedImages[index].path);
+                        return Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                file,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundColor:
+                                    Colors.black.withOpacity(0.6),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.close,
+                                      size: 16, color: Colors.white),
+                                  onPressed: () => _removeImage(index),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    )
+                  else
+                    Text(
+                      'No images attached',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.grey),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('Gallery'),
+                          onPressed: _pickFromGallery,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.photo_camera_outlined),
+                          label: const Text('Camera'),
+                          onPressed: _captureImage,
+                        ),
                       ),
                     ],
                   ),

@@ -11,6 +11,7 @@ class Note {
   final DateTime updatedAt;
   final bool pinned;
   final String? color;
+  final List<String> imageUrls;
 
   const Note({
     required this.id,
@@ -22,6 +23,7 @@ class Note {
     required this.updatedAt,
     this.pinned = false,
     this.color,
+    this.imageUrls = const [],
   });
 
   Note copyWith({
@@ -34,6 +36,7 @@ class Note {
     DateTime? updatedAt,
     bool? pinned,
     String? color,
+    List<String>? imageUrls,
   }) {
     return Note(
       id: id ?? this.id,
@@ -45,6 +48,7 @@ class Note {
       updatedAt: updatedAt ?? this.updatedAt,
       pinned: pinned ?? this.pinned,
       color: color ?? this.color,
+      imageUrls: imageUrls ?? this.imageUrls,
     );
   }
 }
